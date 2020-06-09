@@ -1,0 +1,1 @@
+/usr/bin/c++ -fPIC   -shared -Wl,-soname,libgstmyfilter.so -o libgstmyfilter.so CMakeFiles/gstmyfilter.dir/gstmyfilter.cpp.o /usr/lib/x86_64-linux-gnu/libgstreamer-1.0.so /usr/lib/x86_64-linux-gnu/libglib-2.0.so /usr/lib/x86_64-linux-gnu/libgobject-2.0.so 

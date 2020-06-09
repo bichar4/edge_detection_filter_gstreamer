@@ -1,0 +1,3 @@
+/media/bichar/Shared/cmake_gstreamer/myfilter/build/CMakeFiles/rebuild_cache.dir
+/media/bichar/Shared/cmake_gstreamer/myfilter/build/CMakeFiles/gstmyfilter.dir
+/media/bichar/Shared/cmake_gstreamer/myfilter/build/CMakeFiles/edit_cache.dir
