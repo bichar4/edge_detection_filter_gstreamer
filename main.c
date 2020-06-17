@@ -13,6 +13,7 @@ typedef struct _Customdata
   GstElement *resample;
   GstElement *capsfilter;
   GstElement *sink;
+  GstPad *dbin_srcpad;
   gchar *filename;
   gboolean isFilterActivated;
   GtkWidget *window;
@@ -87,6 +88,8 @@ int main(int argc, char *argv[])
   data.myfilter = gst_element_factory_make("myfilter", "myfilter");
   data.sink = gst_element_factory_make("autovideosink", "sink");
   data.isFilterActivated = FALSE;
+
+  
 
   //create an empty pipeline
   data.pipeline = gst_pipeline_new("test-pipeline");
@@ -174,33 +177,60 @@ static void activate_clicked(GtkButton *button, CustomData *data)
     gst_element_set_state(data->pipeline, GST_STATE_PAUSED);
     g_print("activated clicked\n");
     gst_element_unlink(data->capsfilter, data-> sink);
-    gst_element_sync_state_with_parent(data->myfilter);
+    gst_bin_add (GST_BIN (data->pipeline), data->myfilter);
+
     if(gst_element_link_many(data->capsfilter,data->myfilter,data->sink,NULL)){
       g_print("Succesfully added custom filter to pipeline");
     }
     data->isFilterActivated = TRUE;
-    
+    //gst_element_set_state(data->myfilter, GST_STATE_PAUSED);
     gst_element_set_state(data->pipeline, GST_STATE_PLAYING);
   }
 }
 
+static GstPadProbeReturn
+pad_probe_cb (GstPad * pad, GstPadProbeInfo * info, gpointer user_data)
+{
+  CustomData *data = user_data;
+   GstPad *sinkpad, *srcpad;
+    srcpad = gst_element_get_static_pad(data->capsfilter,"src");
+    sinkpad = gst_element_get_static_pad(data->myfilter, "sink");
+    gst_pad_unlink(srcpad,sinkpad);
+    gst_object_unref(srcpad);
+    gst_object_unref(sinkpad);
+
+    srcpad = gst_element_get_static_pad(data->myfilter,"src");
+    sinkpad = gst_element_get_static_pad(data->sink, "sink");
+    gst_pad_unlink(srcpad,sinkpad);
+    gst_object_unref(srcpad);
+    
+    srcpad = gst_element_get_static_pad(data->capsfilter,"src");
+    if(gst_pad_link(srcpad,sinkpad)!= GST_PAD_LINK_OK){
+      g_printerr("Unable to link convet and sink");
+    }
+    gst_object_unref(srcpad);
+    gst_object_unref(sinkpad);
+
+    gst_bin_remove (GST_BIN (data->pipeline), data->myfilter);
+
+    return GST_PAD_PROBE_REMOVE;
+
+}
+
 static void deactivate_clicked(GtkButton *button, CustomData *data)
 {
-  
   if (data->isFilterActivated)
   {
-    gst_element_set_state(data->pipeline, GST_STATE_PAUSED);
     g_print("deactivated clicked\n");
-  //buggy code
-    gst_element_unlink(data->myfilter,data->sink);
-    gst_element_unlink(data->capsfilter,data->myfilter);
-
-    if(gst_element_link(data->capsfilter,data->sink)){
-      g_print("\n successfully changed the pipeline form convert -> sink \n");
-    }
     data->isFilterActivated = FALSE;
-    gst_element_set_state(data->pipeline, GST_STATE_PLAYING);
-  }
+    data->dbin_srcpad = gst_element_get_static_pad(data->decoder,"src");
+    gst_pad_add_probe (data->dbin_srcpad, GST_PAD_PROBE_TYPE_IDLE, pad_probe_cb, &data,
+    NULL);
+    
+
+   gst_element_set_state(data->pipeline, GST_STATE_PLAYING);
+   }
+ 
 }
 //this function will be called  by the pad added signal
 static void pad_added_handler(GstElement *src, GstPad *new_pad, CustomData *data)
