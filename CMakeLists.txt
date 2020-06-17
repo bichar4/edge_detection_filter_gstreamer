@@ -7,16 +7,18 @@ find_package(PkgConfig)
 
 #using pkg-config to get gstreamer 
 pkg_check_modules(GSTREAMER REQUIRED gstreamer-1.0)
+PKG_CHECK_MODULES(GTK3 REQUIRED gtk+-3.0)
 
 #including GStreamer header files directory
 include_directories(
     ${GSTREAMER_INCLUDE_DIRS}
+    ${GTK3_INCLUDE_DIRS}
 )
 message("hello" ${GSTREAMER_LIBRARIES})
 
 
 #building target executable
-add_executable(${PROJECT_NAME} main.cpp)
+add_executable(${PROJECT_NAME} main.c)
 
 #linking Gstreamer library with target executable 
-target_link_libraries(${PROJECT_NAME} ${GSTREAMER_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} ${GSTREAMER_LIBRARIES} ${GTK3_LIBRARIES})

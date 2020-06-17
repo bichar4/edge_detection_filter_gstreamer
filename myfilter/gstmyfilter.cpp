@@ -61,9 +61,12 @@
 #endif
 
 #include <gst/gst.h>
+#include <gst/video/gstvideofilter.h>
 
 #include "gstmyfilter.h"
 #include <iostream>
+#include <opencv2/core.hpp>
+#include <opencv2/imgproc.hpp>
 GST_DEBUG_CATEGORY_STATIC(gst_my_filter_debug);
 #define GST_CAT_DEFAULT gst_my_filter_debug
 
@@ -235,6 +238,14 @@ gst_my_filter_sink_event(GstPad *pad, GstObject *parent, GstEvent *event)
   return ret;
 }
 
+static gboolean print_field(GQuark field, const GValue *value, gpointer pfx)
+{
+  gchar *str = gst_value_serialize(value);
+
+  g_print("%s  %15s: %s\n", (gchar *)pfx, g_quark_to_string(field), str);
+  g_free(str);
+  return TRUE;
+}
 /* chain function
  * this function does the actual processing
  */
@@ -242,20 +253,70 @@ static GstFlowReturn
 gst_my_filter_chain(GstPad *pad, GstObject *parent, GstBuffer *buf)
 {
   GstMyFilter *filter;
-
+  GstCaps *caps;
   filter = GST_MYFILTER(parent);
+  gint width, height;
+  cv::Mat kernel = (cv::Mat_<char>(3, 3) << -1, -1, -1,
+                    -1, 8, -1,
+                    -1, -1, -1);
+  //Get the caps from pad
+  caps = gst_pad_get_current_caps(pad);
 
-  // GstMapInfo map;
-  // gst_buffer_map(buf, &map, GST_MAP_READ);
-  // gst_util_dump_mem((const guchar *)map.data, map.size);
-  // gst_buffer_unmap(buf, &map);
-  if (filter->silent == FALSE){
-    g_print("I'm plugged, therefore I'm in.\n");
-    std::cout << "hehehehehe "<< std::endl;
+  //printing the information about the caps
+  for (int i = 0; i < gst_caps_get_size(caps); i++)
+  {
+    const gchar *pfx = "a";
+    GstStructure *structure = gst_caps_get_structure(caps, i);
+
+    //get the height and width of the video frame
+    gst_structure_get_int(structure, "width", &width);
+    gst_structure_get_int(structure, "height", &height);
+    g_print("%s%s\n", pfx, gst_structure_get_name(structure));
+    gst_structure_foreach(structure, print_field, (gpointer)pfx);
+    
   }
+
+  GstMapInfo map;
+  gst_buffer_map(buf, &map, GST_MAP_READ);
+  //make a cv frame based on the data 
+  cv::Mat frame(cv::Size(width, height), CV_8UC4, map.data);
+  //std::cout << "Mat:" << frame.size();
+  cv::Mat destframe;
+  cv::filter2D(frame, destframe, frame.depth(), kernel);
+  if (filter->silent == FALSE)
+  {
+    // gst_util_dump_mem((const guchar *)map.data, map.size);
+  }
+
+  
+  buf = gst_buffer_new_wrapped (destframe.data, destframe.total()*destframe.elemSize());
+  //required to increase ref count inorder as gst_buffer_new_wrapped frees the memory and will create double free 
+  buf = gst_buffer_ref (buf);
+  gst_buffer_unmap(buf, &map);
+  gst_caps_unref(caps);
   /* just push out the incoming buffer without touching it */
   return gst_pad_push(filter->srcpad, buf);
 }
+
+
+// static GstFlowReturn
+// gst_my_filter_chain(GstPad *pad, GstObject *parent, GstBuffer *buf)
+// {
+//   GstMyFilter *filter;
+
+//   filter = GST_MYFILTER(parent);
+
+//   // GstMapInfo map;
+//   // gst_buffer_map(buf, &map, GST_MAP_READ);
+//   // gst_util_dump_mem((const guchar *)map.data, map.size);
+//   // gst_buffer_unmap(buf, &map);
+//   if (filter->silent == FALSE){
+//     g_print("I'm plugged, therefore I'm in.\n");
+//     std::cout << "hehehehehe "<< std::endl;
+//   }
+//   /* just push out the incoming buffer without touching it */
+//   return gst_pad_push(filter->srcpad, buf);
+// }
 
 /* entry point to initialize the plug-in
  * initialize the plug-in itself
