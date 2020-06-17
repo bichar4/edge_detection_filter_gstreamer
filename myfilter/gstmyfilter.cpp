@@ -273,12 +273,11 @@ gst_my_filter_chain(GstPad *pad, GstObject *parent, GstBuffer *buf)
     gst_structure_get_int(structure, "height", &height);
     g_print("%s%s\n", pfx, gst_structure_get_name(structure));
     gst_structure_foreach(structure, print_field, (gpointer)pfx);
-    
   }
 
   GstMapInfo map;
   gst_buffer_map(buf, &map, GST_MAP_READ);
-  //make a cv frame based on the data 
+  //make a cv frame based on the data
   cv::Mat frame(cv::Size(width, height), CV_8UC4, map.data);
   //std::cout << "Mat:" << frame.size();
   cv::Mat destframe;
@@ -287,17 +286,20 @@ gst_my_filter_chain(GstPad *pad, GstObject *parent, GstBuffer *buf)
   {
     // gst_util_dump_mem((const guchar *)map.data, map.size);
   }
-
-  
-  buf = gst_buffer_new_wrapped (destframe.data, destframe.total()*destframe.elemSize());
-  //required to increase ref count inorder as gst_buffer_new_wrapped frees the memory and will create double free 
-  buf = gst_buffer_ref (buf);
+  //this unref has to be done because i have assigned the buffer to destframe pointer and previous buf 
+  //will cause memory leak
+  gst_buffer_unref(buf);
+  buf = gst_buffer_new_wrapped(destframe.data, destframe.total() * destframe.elemSize());
+  //required to increase ref count inorder as gst_buffer_new_wrapped frees the memory and will create double free
+  buf = gst_buffer_ref(buf);
+  kernel.release();
+  frame.release();
   gst_buffer_unmap(buf, &map);
   gst_caps_unref(caps);
+ 
   /* just push out the incoming buffer without touching it */
   return gst_pad_push(filter->srcpad, buf);
 }
-
 
 // static GstFlowReturn
 // gst_my_filter_chain(GstPad *pad, GstObject *parent, GstBuffer *buf)

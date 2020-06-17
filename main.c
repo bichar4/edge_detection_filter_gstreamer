@@ -171,26 +171,30 @@ static void activate_clicked(GtkButton *button, CustomData *data)
 {
   if (!(data->isFilterActivated))
   {
-    gst_element_set_state(data->pipeline, GST_STATE_NULL);
+    gst_element_set_state(data->pipeline, GST_STATE_PAUSED);
     g_print("activated clicked\n");
     gst_element_unlink(data->capsfilter, data-> sink);
+    gst_element_sync_state_with_parent(data->myfilter);
     if(gst_element_link_many(data->capsfilter,data->myfilter,data->sink,NULL)){
       g_print("Succesfully added custom filter to pipeline");
     }
     data->isFilterActivated = TRUE;
-    gst_element_set_state(data->myfilter, GST_STATE_PAUSED);
+    
     gst_element_set_state(data->pipeline, GST_STATE_PLAYING);
   }
 }
 
 static void deactivate_clicked(GtkButton *button, CustomData *data)
 {
+  
   if (data->isFilterActivated)
   {
-    gst_element_set_state(data->pipeline, GST_STATE_NULL);
+    gst_element_set_state(data->pipeline, GST_STATE_PAUSED);
     g_print("deactivated clicked\n");
+  //buggy code
     gst_element_unlink(data->myfilter,data->sink);
     gst_element_unlink(data->capsfilter,data->myfilter);
+
     if(gst_element_link(data->capsfilter,data->sink)){
       g_print("\n successfully changed the pipeline form convert -> sink \n");
     }
